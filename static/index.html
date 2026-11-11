@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f6f2" />
+    <meta
+      name="description"
+      content="Una pausa curiosa para poner a prueba lo que sabes. Elige una categoría y juega."
+    />
+    <title>Trivia Club — Un minuto para tu mente</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Trivia Club, ir al inicio">
+        <span class="brand-mark" aria-hidden="true">?</span>
+        <span>trivia<span class="brand-light">club</span></span>
+      </a>
+      <div class="topbar-note"><span class="live-dot"></span> Tu pausa inteligente</div>
+      <span class="topbar-sparkle" aria-hidden="true">✳</span>
+    </header>
+
+    <main>
+      <section id="home-screen" class="home-screen">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow"><span>✦</span> CURIOSIDAD EN MODO ON</div>
+            <h1>Un minuto.<br />Una mente <span>brillante.</span></h1>
+            <p class="hero-description">
+              Unas preguntas, una pequeña pausa y ese placer de saber un poquito más.
+              ¿Te animas?
+            </p>
+            <div class="hero-meta">
+              <span><span class="meta-icon">◷</span> 2 min aprox.</span>
+              <span class="meta-divider"></span>
+              <span><span class="meta-icon">♧</span> A tu ritmo</span>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="art-orbit orbit-one"></div>
+            <div class="art-orbit orbit-two"></div>
+            <div class="art-sun">✳</div>
+            <div class="art-card card-back"><span>✦</span></div>
+            <div class="art-card card-front">
+              <span class="art-question">?</span>
+              <span class="art-card-caption">dato curioso<br />del día</span>
+            </div>
+            <span class="art-star star-one">✦</span>
+            <span class="art-star star-two">✳</span>
+            <span class="art-star star-three">·</span>
+          </div>
+        </div>
+
+        <section class="category-section" aria-labelledby="category-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">ELIGE TU CAMINO</p>
+              <h2 id="category-title">¿Qué te da curiosidad?</h2>
+            </div>
+            <span class="category-count">4 categorías <span>✦</span></span>
+          </div>
+          <div id="categories" class="category-grid" aria-live="polite">
+            <div class="loading-categories">Un momento, estamos preparando el tablero…</div>
+          </div>
+        </section>
+        <p class="footer-note">Sin presión, sin reloj. Solo tú y tu curiosidad <span>✦</span></p>
+      </section>
+
+      <section id="quiz-screen" class="quiz-screen hidden" aria-live="polite">
+        <button id="back-button" class="back-button" type="button">← <span>Salir</span></button>
+        <div class="quiz-shell">
+          <div class="quiz-topline">
+            <span id="quiz-category" class="quiz-category"></span>
+            <span id="question-count" class="question-count"></span>
+          </div>
+          <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+          <div class="question-area">
+            <span id="question-difficulty" class="difficulty"></span>
+            <h2 id="question-text"></h2>
+            <div id="answer-list" class="answer-list"></div>
+            <div id="feedback" class="feedback hidden" role="status"></div>
+            <button id="next-button" class="next-button hidden" type="button">
+              Siguiente pregunta <span>→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="result-screen" class="result-screen hidden">
+        <div class="result-card">
+          <div class="result-confetti" aria-hidden="true">✳</div>
+          <span class="result-kicker">RONDA COMPLETADA</span>
+          <div id="result-icon" class="result-icon" aria-hidden="true">✦</div>
+          <h1 id="result-title"></h1>
+          <p id="result-copy"></p>
+          <div class="score-pill"><span id="final-score"></span><span id="score-total"></span></div>
+          <button id="replay-button" class="replay-button" type="button">Jugar otra vez <span>↗</span></button>
+          <button id="home-button" class="home-button" type="button">Elegir otra categoría</button>
+        </div>
+      </section>
+      <div id="error-message" class="error-message hidden" role="alert"></div>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
