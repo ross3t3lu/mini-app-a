@@ -1,18 +1,22 @@
-const homeScreen = document.querySelector("#home-screen");
-const quizScreen = document.querySelector("#quiz-screen");
-const resultScreen = document.querySelector("#result-screen");
-const categoriesContainer = document.querySelector("#categories");
+const form = document.querySelector("#options-form");
+const lengthInput = document.querySelector("#length-input");
+const lengthValue = document.querySelector("#length-value");
+const output = document.querySelector("#password-output");
+const copyButton = document.querySelector("#copy-button");
+const strengthBar = document.querySelector("#strength-bar");
+const strengthLabel = document.querySelector("#strength-label");
+const entropyLabel = document.querySelector("#entropy-label");
+const historyList = document.querySelector("#history-list");
 const errorMessage = document.querySelector("#error-message");
 
-const state = {
-  category: "",
-  questions: [],
-  questionIndex: 0,
-  score: 0,
-  answered: false,
+const STRENGTH_STYLES = {
+  "Débil": { width: "25%", className: "is-weak" },
+  "Aceptable": { width: "50%", className: "is-fair" },
+  "Fuerte": { width: "75%", className: "is-strong" },
+  "Muy fuerte": { width: "100%", className: "is-very-strong" },
 };
-
-const letters = ["A", "B", "C", "D"];
+const HISTORY_LIMIT = 5;
+const history = [];
 
 function showError(message) {
   errorMessage.textContent = message;
@@ -20,179 +24,93 @@ function showError(message) {
   window.setTimeout(() => errorMessage.classList.add("hidden"), 4500);
 }
 
-async function request(path, options) {
-  const response = await fetch(path, options);
-  if (!response.ok) {
+function readOptions() {
+  const data = new FormData(form);
+  return {
+    length: Number(lengthInput.value),
+    uppercase: data.has("uppercase"),
+    lowercase: data.has("lowercase"),
+    digits: data.has("digits"),
+    symbols: data.has("symbols"),
+    exclude_ambiguous: data.has("exclude_ambiguous"),
+    count: 1,
+  };
+}
+
+async function generate() {
+  try {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(readOptions()),
+    });
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail || "No pudimos completar la solicitud.");
-  }
-  return response.json();
-}
-
-async function loadCategories() {
-  try {
-    const categories = await request("/api/categories");
-    categoriesContainer.replaceChildren(
-      ...categories.map((category) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = `category-card category-${category.color}`;
-        button.setAttribute("aria-label", `Jugar ${category.name}`);
-
-        const icon = document.createElement("span");
-        icon.className = "category-icon";
-        icon.setAttribute("aria-hidden", "true");
-        icon.textContent = category.icon;
-        const name = document.createElement("span");
-        name.className = "category-name";
-        name.textContent = category.name;
-        const description = document.createElement("span");
-        description.className = "category-description";
-        description.textContent = category.description;
-        const count = document.createElement("span");
-        count.className = "category-arrow";
-        count.textContent = `${category.question_count} preguntas ↗`;
-
-        button.append(icon, name, description, count);
-        button.addEventListener("click", () => startQuiz(category.name));
-        return button;
-      }),
-    );
-  } catch {
-    categoriesContainer.innerHTML =
-      '<p class="loading-categories">No pudimos cargar las categorías. Recarga la página para intentarlo de nuevo.</p>';
-  }
-}
-
-async function startQuiz(category) {
-  try {
-    state.category = category;
-    state.questions = await request(
-      `/api/questions?category=${encodeURIComponent(category)}&limit=10`,
-    );
-    state.questionIndex = 0;
-    state.score = 0;
-    state.answered = false;
-    homeScreen.classList.add("hidden");
-    resultScreen.classList.add("hidden");
-    quizScreen.classList.remove("hidden");
-    renderQuestion();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!response.ok) {
+      const detail = typeof body.detail === "string" ? body.detail : null;
+      throw new Error(detail || "No pudimos generar la contraseña.");
+    }
+    render(body.passwords[0]);
   } catch (error) {
     showError(error.message);
   }
 }
 
-function renderQuestion() {
-  const question = state.questions[state.questionIndex];
-  if (!question) {
-    showResults();
-    return;
-  }
+function render(result) {
+  output.textContent = result.password;
+  copyButton.textContent = "Copiar";
 
-  state.answered = false;
-  document.querySelector("#quiz-category").textContent = question.category;
-  document.querySelector("#question-count").textContent =
-    `${String(state.questionIndex + 1).padStart(2, "0")} / ${String(state.questions.length).padStart(2, "0")}`;
-  document.querySelector("#progress-bar").style.width =
-    `${((state.questionIndex + 1) / state.questions.length) * 100}%`;
-  document.querySelector("#question-difficulty").textContent = question.difficulty;
-  document.querySelector("#question-text").textContent = question.question;
-  document.querySelector("#feedback").classList.add("hidden");
-  document.querySelector("#next-button").classList.add("hidden");
+  const style = STRENGTH_STYLES[result.strength];
+  strengthBar.style.width = style.width;
+  strengthBar.className = `strength-bar ${style.className}`;
+  strengthLabel.textContent = result.strength;
+  entropyLabel.textContent = `${result.entropy_bits} bits de entropía`;
 
-  const answerList = document.querySelector("#answer-list");
-  answerList.replaceChildren(
-    ...question.options.map((option, index) => {
+  history.unshift(result.password);
+  history.length = Math.min(history.length, HISTORY_LIMIT);
+  renderHistory();
+}
+
+function renderHistory() {
+  historyList.replaceChildren(
+    ...history.map((password) => {
+      const item = document.createElement("li");
+      const text = document.createElement("code");
+      text.textContent = password;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "answer-option";
-      const letter = document.createElement("span");
-      letter.className = "option-letter";
-      letter.textContent = letters[index];
-      const text = document.createElement("span");
-      text.textContent = option;
-      button.append(letter, text);
-      button.addEventListener("click", () => submitAnswer(index));
-      return button;
+      button.className = "history-copy";
+      button.textContent = "Copiar";
+      button.addEventListener("click", () => copy(password, button));
+      item.append(text, button);
+      return item;
     }),
   );
 }
 
-async function submitAnswer(optionIndex) {
-  if (state.answered) return;
-  state.answered = true;
-  const question = state.questions[state.questionIndex];
-  const options = [...document.querySelectorAll(".answer-option")];
-  options.forEach((option) => (option.disabled = true));
-
+async function copy(text, button) {
   try {
-    const result = await request("/api/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: question.id, option_index: optionIndex }),
-    });
-
-    options[result.correct_index].classList.add("is-correct");
-    if (result.correct) {
-      state.score += 1;
-    } else {
-      options[optionIndex].classList.add("is-incorrect");
-    }
-
-    const feedback = document.querySelector("#feedback");
-    const heading = document.createElement("strong");
-    heading.textContent = result.correct ? "¡Muy bien!" : "Casi, ¡la próxima!";
-    const explanation = document.createElement("span");
-    explanation.textContent = result.explanation;
-    feedback.replaceChildren(heading, explanation);
-    feedback.classList.remove("hidden");
-
-    const nextButton = document.querySelector("#next-button");
-    nextButton.querySelector("span").textContent =
-      state.questionIndex + 1 === state.questions.length ? "✦" : "→";
-    nextButton.classList.remove("hidden");
-    nextButton.focus();
-  } catch (error) {
-    state.answered = false;
-    options.forEach((option) => (option.disabled = false));
-    showError(error.message);
+    await navigator.clipboard.writeText(text);
+    button.textContent = "¡Copiada!";
+    window.setTimeout(() => (button.textContent = "Copiar"), 1800);
+  } catch {
+    showError("No pudimos copiar al portapapeles.");
   }
 }
 
-function showResults() {
-  quizScreen.classList.add("hidden");
-  resultScreen.classList.remove("hidden");
-
-  const percentage = state.score / state.questions.length;
-  const title = percentage === 1 ? "¡Imparable!" : percentage >= 0.6 ? "¡Muy bien hecho!" : "¡Qué buena ronda!";
-  const copy =
-    percentage === 1
-      ? "No se te escapa ni un dato. Se nota esa mente curiosa."
-      : percentage >= 0.6
-        ? "Sabes un montón. Y ahora te llevas algún dato nuevo."
-        : "Cada pregunta es una oportunidad para descubrir algo nuevo.";
-
-  document.querySelector("#result-title").textContent = title;
-  document.querySelector("#result-copy").textContent = copy;
-  document.querySelector("#result-icon").textContent = percentage >= 0.6 ? "✦" : "✳";
-  document.querySelector("#final-score").textContent = state.score;
-  document.querySelector("#score-total").textContent = `/ ${state.questions.length}`;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-document.querySelector("#next-button").addEventListener("click", () => {
-  state.questionIndex += 1;
-  renderQuestion();
+lengthInput.addEventListener("input", () => {
+  lengthValue.textContent = lengthInput.value;
 });
-document.querySelector("#back-button").addEventListener("click", () => {
-  quizScreen.classList.add("hidden");
-  homeScreen.classList.remove("hidden");
+lengthInput.addEventListener("change", generate);
+form.querySelectorAll('input[type="checkbox"]').forEach((input) =>
+  input.addEventListener("change", generate),
+);
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  generate();
 });
-document.querySelector("#replay-button").addEventListener("click", () => startQuiz(state.category));
-document.querySelector("#home-button").addEventListener("click", () => {
-  resultScreen.classList.add("hidden");
-  homeScreen.classList.remove("hidden");
+document.querySelector("#regenerate-button").addEventListener("click", generate);
+copyButton.addEventListener("click", () => {
+  if (history.length) copy(history[0], copyButton);
 });
 
-loadCategories();
+generate();

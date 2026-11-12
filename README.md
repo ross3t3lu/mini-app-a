@@ -1,6 +1,6 @@
-# Trivia Club
+# Clave Segura
 
-Aplicación web de trivia en español, construida con FastAPI. Incluye cuatro categorías, preguntas de opción múltiple, explicación de las respuestas y un resumen del resultado.
+Generador de contraseñas en español, construido con FastAPI. Permite elegir la longitud (4–128), los tipos de carácter (mayúsculas, minúsculas, números y símbolos) y evitar caracteres parecidos. Cada contraseña se genera con el módulo `secrets` de Python, incluye al menos un carácter de cada tipo elegido y muestra su entropía y nivel de fuerza.
 
 ## Requisitos
 
@@ -17,6 +17,24 @@ uvicorn app:app --reload
 ```
 
 Abre <http://127.0.0.1:8000>. La documentación de la API está disponible en <http://127.0.0.1:8000/docs>.
+
+## API
+
+`POST /api/generate`
+
+```json
+{
+  "length": 16,
+  "lowercase": true,
+  "uppercase": true,
+  "digits": true,
+  "symbols": true,
+  "exclude_ambiguous": false,
+  "count": 1
+}
+```
+
+Todos los campos son opcionales. `count` admite de 1 a 10 contraseñas por solicitud.
 
 ## Pruebas
 

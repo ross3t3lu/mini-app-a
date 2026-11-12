@@ -1,55 +1,73 @@
+import string
+
 from fastapi.testclient import TestClient
 
-from app import app
+from app import AMBIGUOUS, SYMBOLS, app
 
 
 client = TestClient(app)
 
 
-def test_homepage_serves_the_trivia_app() -> None:
+def test_homepage_serves_the_generator() -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Trivia Club" in response.text
+    assert "Clave Segura" in response.text
 
 
-def test_categories_include_question_counts() -> None:
-    response = client.get("/api/categories")
-
-    assert response.status_code == 200
-    assert len(response.json()) == 4
-    assert all(category["question_count"] == 3 for category in response.json())
-
-
-def test_question_list_does_not_expose_answers() -> None:
-    response = client.get("/api/questions?category=Ciencia")
+def test_default_generation_returns_one_strong_password() -> None:
+    response = client.post("/api/generate", json={})
 
     assert response.status_code == 200
-    assert len(response.json()) == 3
-    assert all("answer" not in question for question in response.json())
-    assert all("explanation" not in question for question in response.json())
+    body = response.json()
+    assert len(body["passwords"]) == 1
+    result = body["passwords"][0]
+    assert len(result["password"]) == 16
+    assert result["strength"] == "Muy fuerte"
 
 
-def test_answer_reports_correctness_and_explanation() -> None:
-    response = client.post("/api/answer", json={"question_id": 1, "option_index": 1})
+def test_password_includes_every_selected_character_type() -> None:
+    response = client.post("/api/generate", json={"length": 4, "count": 10})
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "correct": True,
-        "correct_index": 1,
-        "explanation": "Saturno encabeza la lista con más de 140 lunas confirmadas.",
-    }
-
-
-def test_unknown_category_and_question_return_not_found() -> None:
-    category_response = client.get("/api/questions?category=Desconocida")
-    answer_response = client.post("/api/answer", json={"question_id": 999, "option_index": 0})
-
-    assert category_response.status_code == 404
-    assert answer_response.status_code == 404
+    for result in response.json()["passwords"]:
+        password = result["password"]
+        assert any(c in string.ascii_lowercase for c in password)
+        assert any(c in string.ascii_uppercase for c in password)
+        assert any(c in string.digits for c in password)
+        assert any(c in SYMBOLS for c in password)
 
 
-def test_answer_rejects_an_invalid_option_index() -> None:
-    response = client.post("/api/answer", json={"question_id": 1, "option_index": 4})
+def test_only_digits_when_other_sets_are_disabled() -> None:
+    response = client.post(
+        "/api/generate",
+        json={"length": 12, "lowercase": False, "uppercase": False, "symbols": False},
+    )
 
-    assert response.status_code == 422
+    body = response.json()
+    assert body["passwords"][0]["password"].isdigit()
+    assert body["pool_size"] == 10
+    assert body["passwords"][0]["strength"] == "Débil"
+
+
+def test_exclude_ambiguous_characters() -> None:
+    response = client.post(
+        "/api/generate",
+        json={"length": 128, "exclude_ambiguous": True, "count": 5},
+    )
+
+    for result in response.json()["passwords"]:
+        assert not set(result["password"]) & AMBIGUOUS
+
+
+def test_rejects_when_no_character_type_is_selected() -> None:
+    response = client.post(
+        "/api/generate",
+        json={"lowercase": False, "uppercase": False, "digits": False, "symbols": False},
+    )
+
+    assert response.status_code == 400
+
+
+def test_rejects_out_of_range_length() -> None:
+    assert client.post("/api/generate", json={"length": 3}).status_code == 422
+    assert client.post("/api/generate", json={"length": 129}).status_code == 422
